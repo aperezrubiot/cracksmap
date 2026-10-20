@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CRACKS GYM · Centro de Control</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDnMY4ykl0I__mLPLlYhUF0qy3XJ-OQiTE&callback=initCracksMap&libraries=places"></script>
+<style>
+
+:root{
+  --bg:#F3F5F9; --surface:#FFFFFF; --ink:#15171C; --muted:#5D6470; --line:#DDE2EA;
+  --blue:#1E4FD8; --lime:#84E12A; --lime-ink:#0F1A04; --bubble:#E6F6D6; --bubble-ink:#15171C;
+  --danger:#C62828; --chip:#E8ECF4; --pos:#2E7D32; --neg:#C62828;
+  --map-bg:#E9EDF3; --map-fill:#FFFFFF; --map-stroke:#C5CDD9; --map-r:#C9D7FA; --map-t:#CFF0A8; --map-rt:#9FD86A;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101318; --surface:#181C23; --ink:#ECEFF4; --muted:#9AA3B2; --line:#2A303B;
+    --blue:#5B83F2; --lime:#8EE83A; --bubble:#1F3A12; --bubble-ink:#E8F6DC; --danger:#FF6B6B; --chip:#232934;
+    --pos:#7BD88F; --neg:#FF7B7B;
+    --map-bg:#0C0F13; --map-fill:#1B2029; --map-stroke:#323A47; --map-r:#26386B; --map-t:#2F4D17; --map-rt:#4A7A22;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101318; --surface:#181C23; --ink:#ECEFF4; --muted:#9AA3B2; --line:#2A303B;
+  --blue:#5B83F2; --lime:#8EE83A; --bubble:#1F3A12; --bubble-ink:#E8F6DC; --danger:#FF6B6B; --chip:#232934;
+  --pos:#7BD88F; --neg:#FF7B7B;
+  --map-bg:#0C0F13; --map-fill:#1B2029; --map-stroke:#323A47; --map-r:#26386B; --map-t:#2F4D17; --map-rt:#4A7A22;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1180px;margin:0 auto;padding:10px 18px 0;display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap}
+.brand{font:italic 800 26px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:var(--blue);padding-bottom:10px;white-space:nowrap}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0}
+nav.tabs button{all:unset;cursor:pointer;padding:10px 14px 12px;font:600 15px/1 "Barlow",sans-serif;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--lime)}
+nav.tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+main{max-width:1180px;margin:0 auto;padding:22px 18px 70px}
+.tab{display:none}.tab.on{display:block}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.head h2{font-size:30px;line-height:1}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi .lab{font-size:13px;color:var(--muted)}
+.kpi .val{font:800 32px/1.1 "Barlow Condensed","Arial Narrow",sans-serif;margin-top:4px}
+.kpi .foot{font-size:13px;color:var(--muted);margin-top:4px}
+.kpi.hero{background:var(--blue);border-color:var(--blue);color:#fff}
+.kpi.hero .lab,.kpi.hero .foot{color:rgba(255,255,255,.85)}
+.prog{height:8px;background:rgba(255,255,255,.25);border-radius:99px;margin-top:10px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--lime);border-radius:99px}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+.two{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.card h3{font-size:20px;margin-bottom:10px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.form label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+.form .wide{grid-column:1/-1}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
+.btn{font:600 14px/1 "Barlow",sans-serif;border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--blue);color:#fff}
+.btn.lime{background:var(--lime);color:var(--lime-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:12px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.total td{font-weight:700;border-top:2px solid var(--ink)}
+tr.now td{background:color-mix(in srgb,var(--lime) 18%,transparent)}
+.x{all:unset;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:6px}
+.x:hover{color:var(--danger)}
+.x:focus-visible{outline:2px solid var(--blue)}
+.mix{display:flex;flex-direction:column;gap:8px}
+.mix .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;font-size:14px}
+.mix .barr{grid-column:1/-1;height:6px;background:var(--chip);border-radius:99px;overflow:hidden}
+.mix .barr i{display:block;height:100%;background:var(--blue)}
+.empty{color:var(--muted);padding:16px 0}
+.note{font-size:13px;color:var(--muted)}
+.chartbox{position:relative;height:280px}
+.warn{border-left:4px solid var(--danger);padding:10px 14px;background:var(--surface);border-radius:8px;margin-bottom:16px;font-size:14px}
+ul.plain{margin:0;padding-left:18px}ul.plain li{margin-bottom:4px}
+/* FAQ */
+.ask{background:var(--blue);color:#fff;border-radius:18px;padding:20px;margin-bottom:24px}
+.ask h3{font-size:26px;margin-bottom:4px}
+.ask p{margin:0 0 12px;opacity:.88;font-size:14px}
+.ask textarea{background:#fff;color:#15171C;border:0;min-height:80px;resize:vertical}
+.ask textarea:focus{outline:3px solid var(--lime)}
+.ask .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.result{background:var(--surface);color:var(--ink);border-radius:14px;padding:16px;margin-top:14px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin:10px 0 4px}
+.chip{flex:0 0 auto;border:0;background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 14px;font:600 14px/1 "Barlow",sans-serif;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chip small{font-weight:500;opacity:.7;margin-left:4px}
+.sec{margin-top:22px}
+.sec h3{font-size:22px;margin-bottom:10px;padding-left:10px;border-left:5px solid var(--lime)}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.item>button.q{all:unset;display:flex;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;padding:13px 16px;cursor:pointer;font-weight:600}
+.item>button.q:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.item.open>button.q .chev{transform:rotate(90deg)}
+.chev{color:var(--muted);transition:transform .15s}
+.tag{font:600 11px/1 "Barlow",sans-serif;background:var(--lime);color:var(--lime-ink);border-radius:6px;padding:4px 6px;margin-left:8px}
+.body{display:none;padding:0 16px 16px}.item.open .body{display:block}
+.bubble{background:var(--bubble);color:var(--bubble-ink);border-radius:4px 14px 14px 14px;padding:12px 14px;white-space:pre-wrap;word-wrap:break-word}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.act{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;font:600 13px/1 "Barlow",sans-serif;cursor:pointer}
+.act.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.act.danger{color:var(--danger)}
+.edit label{font-size:12px;color:var(--muted);display:block;margin:6px 0 3px}
+.edit textarea{min-height:150px}
+/* Map */
+.maplayout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px}
+@media (max-width:900px){.maplayout{grid-template-columns:1fr}}
+.mapbox{position:relative;background:var(--map-bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;height:min(72vh,680px);touch-action:none}
+.mapbox svg{width:100%;height:100%;display:block;cursor:grab}
+.mapbox.adding svg{cursor:crosshair}
+.mapbox svg.dragging{cursor:grabbing}
+.col{fill:var(--map-fill);stroke:var(--map-stroke);vector-effect:non-scaling-stroke;stroke-width:.6}
+.col.r{fill:var(--map-r)}.col.t{fill:var(--map-t)}.col.r.t{fill:var(--map-rt)}
+.col:hover{stroke:var(--ink);stroke-width:1.2}
+.ring{fill:none;stroke:var(--blue);stroke-width:2;stroke-dasharray:6 4;vector-effect:non-scaling-stroke}
+.pt{stroke:#fff;vector-effect:non-scaling-stroke;stroke-width:2;cursor:pointer}
+.pt.sel{stroke:var(--ink);stroke-width:3}
+.ptlab{font-family:"Barlow",sans-serif;font-weight:700;paint-order:stroke;stroke:var(--map-bg);stroke-width:3px;fill:var(--ink);pointer-events:none}
+.mapctl{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px}
+.mapctl button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 18px/1 "Barlow",sans-serif;cursor:pointer}
+.mapmode{position:absolute;top:10px;right:10px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:8px;display:none;max-width:220px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--map-stroke)}
+.plist{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.plist button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px}
+.plist button[aria-pressed="true"]{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.stat{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:14px;margin-top:8px}
+.stat b{font-variant-numeric:tabular-nums;text-align:right}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.show{opacity:1}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== TAB MAPA GOOGLE ===== */
+
+:root{
+  --bg:#F3F5F9; --surface:#FFFFFF; --ink:#15171C; --muted:#5D6470; --line:#DDE2EA;
+  --blue:#1E4FD8; --lime:#84E12A; --lime-ink:#0F1A04; --danger:#C62828; --chip:#E8ECF4;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#101318;--surface:#181C23;--ink:#ECEFF4;--muted:#9AA3B2;--line:#2A303B;--blue:#5B83F2;--lime:#8EE83A;--danger:#FF6B6B;--chip:#232934}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Barlow",system-ui,sans-serif}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+header .brand{font:italic 800 24px/1 "Barlow Condensed",sans-serif;color:var(--blue)}
+header .sub{color:var(--muted);font-size:13px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0;height:calc(100vh - 54px)}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;height:auto}}
+#map{width:100%;height:100%;min-height:420px}
+aside{overflow-y:auto;padding:16px;border-left:1px solid var(--line);background:var(--surface)}
+@media (max-width:900px){aside{border-left:0;border-top:1px solid var(--line)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h3{font-size:18px;margin-bottom:8px}
+.btn{font:600 14px/1 "Barlow",sans-serif;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;background:var(--blue);color:#fff}
+.btn.lime{background:var(--lime);color:var(--lime-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.form .wide{grid-column:1/-1}
+.form label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 9px;width:100%}
+input:focus,select:focus{outline:2px solid var(--blue)}
+.plist{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.plist button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-weight:600;font-size:13px}
+.plist button[aria-pressed="true"]{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.stat{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13px;margin-top:8px}
+.stat b{font-variant-numeric:tabular-nums;text-align:right}
+.note{font-size:12px;color:var(--muted)}
+.warn{border-left:3px solid #E0A800;padding:8px 10px;background:var(--chip);border-radius:6px;font-size:12px;margin-top:8px}
+.bar{height:8px;background:var(--chip);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--blue)}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px;border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+.toast.show{opacity:1}
+.gm-style-iw{font-family:"Barlow",sans-serif}
+
+#tab-mapa { padding:0 }
+.gmaplayout { display:flex; height:calc(100vh - 54px); overflow:hidden }
+#gmap { flex:1; height:100% }
+#tab-mapa aside { width:340px; min-width:280px; overflow-y:auto; padding:12px; background:var(--surface); border-left:1px solid var(--line) }
+@media(max-width:700px){
+  .gmaplayout{flex-direction:column}
+  #gmap{height:55vh}
+  #tab-mapa aside{width:100%;border-left:none;border-top:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<nav class="tabs" role="tablist">
+  <div class="brand">⚡ CRACKS GYM</div>
+  <button role="tab" data-tab="finanzas" aria-selected="true">Finanzas</button>
+  <button role="tab" data-tab="flujos" aria-selected="false">Flujos</button>
+  <button role="tab" data-tab="preguntas" aria-selected="false">Preguntas</button>
+  <button role="tab" data-tab="ubicaciones" aria-selected="false">Mapa Colonias</button>
+  <button role="tab" data-tab="mapa" aria-selected="false">🗺 Mapa Google</button>
+</nav>
+<main>
+
+<!-- ============ FINANZAS ============ -->
+<section class="tab on" id="tab-finanzas" role="tabpanel">
+  <div class="head"><div><h2>Finanzas de preventa</h2><div class="sub">Registra cada inscrito y cada gasto; los totales se actualizan solos.</div></div></div>
+  <div class="grid kpis">
+    <div class="card kpi hero"><div class="lab">Socios inscritos</div><div class="val" id="kSoc">0</div><div class="foot" id="kSocF">Meta de preventa: 500</div><div class="prog"><i id="kProg" style="width:0"></i></div></div>
+    <div class="card kpi"><div class="lab">Ingresos cobrados</div><div class="val" id="kIng">$0</div><div class="foot" id="kIngF"></div></div>
+    <div class="card kpi"><div class="lab">Egresos</div><div class="val" id="kEgr">$0</div><div class="foot" id="kEgrF"></div></div>
+    <div class="card kpi"><div class="lab">Saldo de caja</div><div class="val" id="kSal">$0</div><div class="foot">Ingresos menos egresos registrados</div></div>
+  </div>
+  <div class="grid two" style="margin-bottom:12px">
+    <div class="card">
+      <h3>Registrar inscrito</h3>
+      <div class="form" id="fMem">
+        <label>Fecha<input type="date" id="mFecha"></label>
+        <label>Plan<select id="mPlan"><option value="anual">Plan Anual</option><option value="dos">2+1er Mes Gratis</option><option value="crack">Plan Crack (mensual)</option><option value="otro">Otro</option></select></label>
+        <label>Monto cobrado<input type="number" id="mMonto" min="0" step="1" inputmode="numeric"></label>
+        <label class="wide">Nombre<input id="mNombre" autocomplete="off"></label>
+        <label>Teléfono<input id="mTel" inputmode="tel" autocomplete="off"></label>
+        <label>Canal<select id="mCanal"><option>WhatsApp</option><option>Stand Soriana</option><option>Página web</option><option>Referido</option><option>Otro</option></select></label>
+        <label>Folio Openpay<input id="mFolio" autocomplete="off"></label>
+        <div class="wide"><button class="btn lime" id="mAdd">Guardar inscrito</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Registrar egreso</h3>
+      <div class="form">
+        <label>Fecha<input type="date" id="eFecha"></label>
+        <label>Categoría<select id="eCat"><option>Nómina</option><option>Marketing</option><option>Stand / módulo</option><option>Renta</option><option>Equipo (Matrix)</option><option>Obra</option><option>Servicios (CFE, agua)</option><option>Comisiones de cobro</option><option>Otros</option></select></label>
+        <label>Monto (con IVA)<input type="number" id="eMonto" min="0" step="1" inputmode="numeric"></label>
+        <label class="wide">Concepto<input id="eConc" autocomplete="off"></label>
+        <div class="wide"><button class="btn" id="eAdd">Guardar egreso</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid two" style="margin-bottom:12px">
+    <div class="card"><h3>Ingresos y egresos por mes</h3><div class="chartbox"><canvas id="cFin" aria-label="Ingresos y egresos por mes"></canvas></div></div>
+    <div class="card"><h3>Mezcla de ventas</h3><div class="mix" id="mixPlan"></div><h3 style="margin-top:18px">Por canal</h3><div class="mix" id="mixCanal"></div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="head" style="margin-bottom:8px"><h3>Inscritos</h3><input id="mSearch" type="search" placeholder="Buscar nombre, teléfono o folio" style="max-width:280px" aria-label="Buscar inscrito"></div>
+    <div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Nombre</th><th>Teléfono</th><th>Plan</th><th class="n">Monto</th><th>Canal</th><th>Folio</th><th></th></tr></thead><tbody id="tMem"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h3>Egresos</h3>
+    <div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Concepto</th><th class="n">Monto</th><th></th></tr></thead><tbody id="tExp"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ============ FLUJOS ============ -->
+<section class="tab" id="tab-flujos" role="tabpanel">
+  <div class="head"><div><h2>Flujo de caja: proyectado vs real</h2><div class="sub">Proyección de la corrida del 5 de octubre de 2026 (escenario base, cifras con IVA). La columna real sale de lo que registras en Finanzas.</div></div></div>
+  <div class="warn" id="fWarn"></div>
+  <div class="grid kpis">
+    <div class="card kpi"><div class="lab">Saldo proyectado a fin de este mes</div><div class="val" id="fProy">$0</div><div class="foot" id="fProyF"></div></div>
+    <div class="card kpi"><div class="lab">Saldo real a hoy</div><div class="val" id="fReal">$0</div><div class="foot" id="fRealF"></div></div>
+    <div class="card kpi"><div class="lab">Primer mes en negativo</div><div class="val" id="fNeg">—</div><div class="foot">Según la proyección</div></div>
+    <div class="card kpi"><div class="lab">Saldo a diciembre 2027</div><div class="val neg" id="fDic">$0</div><div class="foot">Según la proyección</div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px"><h3>Saldo de caja acumulado</h3><div class="chartbox" style="height:320px"><canvas id="cFlujo" aria-label="Saldo de caja proyectado y real"></canvas></div></div>
+  <div class="card" style="margin-bottom:12px">
+    <h3>Mes a mes</h3>
+    <div class="tablewrap"><table><thead><tr><th>Mes</th><th class="n">Ingresos proy.</th><th class="n">Ingresos real</th><th class="n">Egresos proy.</th><th class="n">Egresos real</th><th class="n">Flujo neto proy.</th><th class="n">Saldo proy.</th><th class="n">Saldo real</th></tr></thead><tbody id="tFlujo"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h3>Supuestos de la proyección</h3>
+    <ul class="plain note" style="font-size:14px">
+      <li>500 socios en preventa (15 oct – 15 ene): 60% anualidad a $4,299 y 40% Plan Crack a $499. No incluye el 2+1er Mes Gratis, que salió después de la corrida.</li>
+      <li>Costos de preventa: $471,000 (nómina $52K y marketing $95K al mes por 3 meses, más $30K del módulo).</li>
+      <li>Apertura el 15 de enero de 2027; 1,035 altas en 2027, retención mensual del 95% y 10% de anualidades después de abrir a $4,999.</li>
+      <li>Matrix: $429,647 al mes. Renta Soriana ($53,287.50 con IVA) desde junio. Comisión de pasarela 2.1% (tasa de MercadoPago; con Openpay puede cambiar).</li>
+      <li>Las 300 anualidades de preventa no generan flujo en 2027: es caja cobrada por adelantado.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ PREGUNTAS ============ -->
+<section class="tab" id="tab-preguntas" role="tabpanel">
+  <div class="ask">
+    <h3>¿Qué te preguntó el cliente?</h3>
+    <p>Pega su mensaje tal cual. Te armo la respuesta con la información del gym y la guardo en su sección.</p>
+    <label class="sr" for="askInput">Mensaje del cliente</label>
+    <textarea id="askInput" placeholder="Ej. ¿Puedo congelar mi membresía si salgo de viaje?"></textarea>
+    <div class="row"><button class="btn lime" id="askBtn">Generar respuesta</button><span id="askStatus" role="status" style="font-size:14px"></span></div>
+    <div id="askResult"></div>
+  </div>
+  <input id="qSearch" type="search" placeholder="Buscar pregunta o palabra (precio, horario, pareja…)" aria-label="Buscar respuesta">
+  <div class="chips" id="chips" role="group" aria-label="Secciones de preguntas"></div>
+  <div id="qList"><p class="empty">Cargando respuestas…</p></div>
+</section>
+
+<!-- ============ UBICACIONES ============ -->
+<section class="tab" id="tab-ubicaciones" role="tabpanel">
+  <div class="head"><div><h2>Ubicaciones</h2><div class="sub">Marca un punto, ponle un radio o minutos en auto, y ve cuántas personas viven en esa zona.</div></div></div>
+  <div class="maplayout">
+    <div>
+      <div class="mapbox" id="mapbox">
+        <svg id="map" role="img" aria-label="Mapa de colonias de Hermosillo"><g id="gCol"></g><g id="gRing"></g><g id="gPts"></g></svg>
+        <div class="mapctl"><button id="zIn" aria-label="Acercar">+</button><button id="zOut" aria-label="Alejar">−</button><button id="zFit" aria-label="Ver toda la ciudad">⤢</button></div>
+        <div class="mapmode"><button class="btn lime" id="addMode">Agregar punto</button></div>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--map-r)"></i>Dentro del radio</span><span><i style="background:var(--map-t)"></i>Dentro de los minutos (estimado)</span><span><i style="background:var(--map-rt)"></i>Ambos</span></div>
+      <p class="note">Colonias de Hermosillo con población del Censo INEGI 2020 (polígonos del INE). Hermosillo creció ~9.9% de 2020 a 2025 según CONAPO, pero no parejo: se concentró en fraccionamientos nuevos, mientras colonias ya consolidadas no tenían espacio para crecer. Repartir ese 9.9% por igual habría inflado colonias que en realidad no crecieron. Por eso aquí se usan los números reales de 2020 por colonia: trátalos como un piso, no como el dato exacto de hoy. 41 colonias no tienen dato de población.</p>
+    </div>
+    <aside>
+      <div class="card">
+        <h3>Puntos</h3>
+        <div class="plist" id="plist"></div>
+        <div id="pEdit"><p class="empty">Toca “Agregar punto” y luego el mapa, o elige un punto de la lista.</p></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Comparativo</h3>
+        <div class="tablewrap"><table><thead><tr><th>Punto</th><th class="n">Pob. radio</th><th class="n">Pob. minutos</th></tr></thead><tbody id="tCmp"></tbody></table></div>
+        <p class="note" style="margin-top:8px">Los minutos son un estimado: distancia en línea recta × 1.3 a la velocidad promedio que elijas. No es una ruta real; confirma con Google Maps antes de decidir.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+  <section class="tab" id="tab-mapa" role="tabpanel">
+    <div class="gmaplayout">
+      <div id="gmap"></div>
+      <aside>
+        <div class="card">
+          <h3>Puntos</h3>
+          <div class="plist" id="plist"></div>
+          <button class="btn lime" id="addMode">Agregar punto</button>
+          <p class="note" id="addHint" style="margin-top:8px">Toca el botón y luego da clic en el mapa.</p>
+        </div>
+        <div class="card" id="editCard" style="display:none">
+      <h3>Editar punto</h3>
+      <div class="form">
+        <label class="wide">Nombre<input id="pNom"></label>
+        <label>Tipo<select id="pTipo">
+          <option value="propio">Propio</option><option value="competencia">Competencia</option>
+          <option value="prospecto">Prospecto</option><option value="otro">Otro</option>
+        </select></label>
+        <label>Radio (km)<input id="pRad" type="number" min="0" step="0.5"></label>
+        <label>Minutos buscados<input id="pMin" type="number" min="0" step="1"></label>
+        <label>Velocidad estimada (km/h)<input id="pVel" type="number" min="5" step="1"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost" id="pDel" style="color:var(--danger)">Borrar punto</button>
+      </div>
+      <div class="card" style="margin:12px 0 0;padding:10px;background:var(--bg)">
+        <div class="row" style="justify-content:space-between">
+          <b style="font-size:13px">Área real a X minutos manejando</b>
+          <button class="btn" id="pCalc" style="padding:7px 12px;font-size:13px">Calcular con Google</button>
+        </div>
+        <div class="bar" id="pBar" style="display:none"><i id="pBarI" style="width:0"></i></div>
+        <p class="note" id="pCalcNote" style="margin-top:6px">Sin calcular todavía: la zona de minutos se muestra con una estimación (línea recta × 1.3 a la velocidad de arriba).</p>
+      </div>
+      <div class="card" style="margin:12px 0 0;padding:10px;background:var(--bg)">
+        <b style="font-size:13px">Audiencia estimada en Meta (Facebook/Instagram)</b>
+        <div class="form" style="margin-top:8px">
+          <label>Edad mínima<input id="mEdadMin" type="number" min="13" max="65" step="1" value="18"></label>
+          <label>Edad máxima<input id="mEdadMax" type="number" min="13" max="65" step="1" value="65"></label>
+          <label>Género<select id="mGenero">
+            <option value="todos">Todos</option>
+            <option value="1">Hombres</option>
+            <option value="2">Mujeres</option>
+          </select></label>
+          <label>Dispositivo<select id="mDispositivo">
+            <option value="todos">Todos</option>
+            <option value="ios">iPhone (iOS)</option>
+            <option value="android">Android</option>
+          </select></label>
+          <label>Intereses fitness<select id="mInteres">
+            <option value="ninguno">Sin filtrar</option>
+            <option value="6003483988152">Fitness y bienestar</option>
+            <option value="6003402439805">Gimnasio</option>
+            <option value="6003107902433">Ejercicio físico</option>
+            <option value="6003263791114">Running</option>
+            <option value="6004003752433">Nutrición y dieta</option>
+            <option value="6003512087068">Vida saludable</option>
+          </select></label>
+          <label>Comportamiento<select id="mComport">
+            <option value="ninguno">Sin filtrar</option>
+            <option value="6002714895372">Viajero frecuente</option>
+            <option value="6023004837508">Comprador de fitness</option>
+          </select></label>
+          <label>Estado civil<select id="mEstado">
+            <option value="todos">Todos</option>
+            <option value="1">Soltero(a)</option>
+            <option value="2">En relación</option>
+            <option value="3">Casado(a)</option>
+            <option value="4">Divorciado(a)</option>
+          </select></label>
+          <label>Escolaridad<select id="mEscolar">
+            <option value="todos">Todos</option>
+            <option value="1,2">Preparatoria o menos</option>
+            <option value="3,4">Universidad</option>
+            <option value="5,6,8">Posgrado</option>
+          </select></label>
+        </div>
+        <div class="row" style="margin-top:10px;justify-content:space-between">
+          <span class="note">Usa el radio (km) de arriba, mínimo 1 km.</span>
+          <button class="btn" id="mCalc" style="padding:7px 12px;font-size:13px">Consultar audiencia</button>
+        </div>
+        <p class="note" id="mNote" style="margin-top:6px">Sin consultar todavía.</p>
+        <details style="margin-top:8px">
+          <summary class="note" style="cursor:pointer">Credenciales de Meta</summary>
+          <div class="form" style="margin-top:8px">
+            <label class="wide">Token de acceso (dura poco, cámbialo cuando caduque)<input id="metaToken" autocomplete="off"></label>
+            <label class="wide">ID de cuenta publicitaria<input id="metaAcct" autocomplete="off"></label>
+          </div>
+        </details>
+      </div>
+      <div class="card" style="margin:12px 0 0;padding:10px;background:var(--bg)">
+        <div class="row" style="justify-content:space-between">
+          <b style="font-size:13px">Gimnasios en el radio</b>
+          <button class="btn" id="gBuscar" style="padding:7px 12px;font-size:13px">Buscar gimnasios</button>
+        </div>
+        <p class="note" id="gNote" style="margin-top:6px">Sin buscar todavía. Usa el radio (km) de arriba.</p>
+        <div id="gList"></div>
+      </div>
+      <div class="stat" id="pStat"></div>
+      <p class="note" id="pCoord" style="margin-top:8px"></p>
+    </div>
+    <div class="card">
+      <h3>Leyenda</h3>
+      <div class="legend">
+        <span><i style="background:#C9D7FA"></i>Dentro del radio</span>
+        <span><i style="background:#CFF0A8"></i>Dentro de los minutos</span>
+        <span><i style="background:#9FD86A"></i>Dentro de ambos</span>
+      </div>
+      <p class="note" style="margin-top:8px">Los puntos se guardan solo en este navegador (no se suben a internet). Si abres el archivo en otra computadora, no los vas a ver ahí.</p>
+    </div>
+  
+      </aside>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ============ CONFIG ============ */
+const SUPABASE_URL   = "https://yghstpupnwzfbmrilael.supabase.co";
+const SUPABASE_KEY   = "sb_publishable_cf3mX3D9YQiMn22pDp6wGg_VcZvspo-";
+const CLAUDE_KEY     = "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";
+const ROUTES_API_KEY = "AIzaSyDnMY4ykl0I__mLPLlYhUF0qy3XJ-OQiTE";
+
+/* ============ SUPABASE ============ */
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ============ UTILIDADES ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":'&#39;'
+}[c]));
+const money = n => (n<0?"−":"")+"$"+Math.round(Math.abs(n||0)).toLocaleString("es-MX");
+const num   = n => Math.round(n||0).toLocaleString("es-MX");
+const today = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0") };
+const ym    = f => String(f||"").slice(0,7);
+const MES   = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const ymLabel = k => { const [y,m]=k.split("-"); return MES[+m-1]+" "+y.slice(2) };
+function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),1800) }
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ============ COMPARTIDAS ============ */
+const TIPOS = {propio:{n:"Propio",c:"#84E12A"},competencia:{n:"Competencia",c:"#E53935"},prospecto:{n:"Prospecto",c:"#1E4FD8"},otro:{n:"Otro",c:"#8E8E93"}};
+function hav(a,b,c,d){const R=6371,r=Math.PI/180,dl=(c-a)*r,dg=(d-b)*r;const h=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+
+/* ============ ESTADO ============ */
+const S = { members:[], expenses:[], faqs:[], locs:[], tab:"finanzas" };
+const dbErr = e => e?.message || "No se guardó, intenta de nuevo";
+
+/* ============ DB HELPERS ============ */
+function makeTable(t){
+  return {
+    add: async d => {
+      const {data,error} = await sb.from(t).insert(d).select().single();
+      if(error) throw error;
+      return {id:data.id};
+    },
+    doc: id => ({
+      delete: async () => { const {error}=await sb.from(t).delete().eq("id",id); if(error)throw error; },
+      update: async v  => { const {error}=await sb.from(t).update(v).eq("id",id);  if(error)throw error; }
+    })
+  };
+}
+const COL = {
+  members:  makeTable("members"),
+  expenses: makeTable("expenses"),
+  faqs:     makeTable("faqs"),
+  locs:     makeTable("locations")
+};
+
+/* ============ CLAUDE API ============ */
+const sample = {
+  json: async (prompt) => {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":CLAUDE_KEY,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:prompt}]})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error?.message||"Error API");
+    const text = data.content.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
+    return JSON.parse(text);
+  }
+};
+
+/* ============ PESTAÑAS ============ */
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("on",s.id==="tab-"+t));
+  try{localStorage.setItem("cg-tab",t)}catch(e){}
+  if(t==="finanzas")    renderFin();
+  if(t==="flujos")      renderFlujo();
+  if(t==="ubicaciones") { if(window.GEO) mapInit(); }
+  if(t==="mapa" && window._gMapReady) window.dispatchEvent(new Event("cracksmap-show"));
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+
+/* ============ CARGAR COLONIAS.JSON ============ */
+fetch('colonias.json')
+  .then(r=>r.json())
+  .then(data=>{
+    window.GEO=data;
+    if(S.tab==="ubicaciones") mapInit();
+  })
+  .catch(e=>console.error("colonias.json:",e));
+
+/* ============ SUPABASE: CARGA INICIAL + REALTIME ============ */
+async function loadAll(){
+  const [mem,exp,faq,loc] = await Promise.all([
+    sb.from("members").select("*").order("created_at"),
+    sb.from("expenses").select("*").order("created_at"),
+    sb.from("faqs").select("*").order("order"),
+    sb.from("locations").select("*").order("created_at")
+  ]);
+  S.members  = mem.data  || [];
+  S.expenses = exp.data  || [];
+  S.faqs     = (faq.data||[]).sort((a,b)=>idx(a.section)-idx(b.section)||(a.order||0)-(b.order||0));
+  S.locs     = loc.data  || [];
+  if(!MAP.sel && S.locs[0]) MAP.sel = S.locs[0].id;
+  renderFin(); renderFlujo(); renderFaq(); renderLocs();
+}
+
+sb.channel("cg-rt")
+  .on("postgres_changes",{event:"*",schema:"public",table:"members"},  async()=>{const d=await sb.from("members").select("*").order("created_at");S.members=d.data||[];renderFin();renderFlujo();})
+  .on("postgres_changes",{event:"*",schema:"public",table:"expenses"}, async()=>{const d=await sb.from("expenses").select("*").order("created_at");S.expenses=d.data||[];renderFin();renderFlujo();})
+  .on("postgres_changes",{event:"*",schema:"public",table:"faqs"},     async()=>{const d=await sb.from("faqs").select("*").order("order");S.faqs=(d.data||[]).sort((a,b)=>idx(a.section)-idx(b.section)||(a.order||0)-(b.order||0));renderFaq();})
+  .on("postgres_changes",{event:"*",schema:"public",table:"locations"},async()=>{const d=await sb.from("locations").select("*").order("created_at");S.locs=d.data||[];renderLocs();})
+  .subscribe();
+
+/* ============ LÓGICA DEL DASHBOARD ============ */
+
+/* ---------- utilidades ---------- */
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+
+// [dedup]
+// [dedup]
+// [dedup]
+
+/* ---------- pestañas ---------- */
+// [setTab dedup]
+// [dedup]
+
+/* =====================================================
+   FINANZAS
+===================================================== */
+const PLANES={anual:"Plan Anual",dos:"2+1er Mes Gratis",crack:"Plan Crack",otro:"Otro"};
+function precio(plan,fecha){
+  if(plan==="dos")return 998; if(plan==="crack")return 499; if(plan==="otro")return "";
+  const m=ym(fecha); return m<="2026-10"?4299:m==="2026-11"?4399:4499;
+}
+const META=500;
+const PROY_SOC=[["2026-10-15","2026-10-31",82],["2026-11-01","2026-11-30",135],["2026-12-01","2026-12-31",112],["2027-01-01","2027-01-15",171]];
+function socEsperados(){
+  const t=new Date(today()+"T12:00:00");let s=0;
+  for(const [a,b,n] of PROY_SOC){const A=new Date(a+"T00:00:00"),B=new Date(b+"T23:59:59");
+    if(t>=B)s+=n;else if(t>=A){s+=n*((t-A)/(B-A))}}
+  return Math.round(s);
+}
+$("#mFecha").value=today();$("#eFecha").value=today();
+const setPrecio=()=>{$("#mMonto").value=precio($("#mPlan").value,$("#mFecha").value)};
+$("#mPlan").addEventListener("change",setPrecio);$("#mFecha").addEventListener("change",setPrecio);setPrecio();
+
+$("#mAdd").addEventListener("click",async e=>{
+  const d={fecha:$("#mFecha").value,plan:$("#mPlan").value,monto:Number($("#mMonto").value),nombre:$("#mNombre").value.trim(),telefono:$("#mTel").value.trim(),canal:$("#mCanal").value,folio:$("#mFolio").value.trim(),createdAt:new Date().toISOString()};
+  if(!d.fecha||!d.nombre||!(d.monto>=0)){toast("Pon fecha, nombre y monto");return}
+  // [col check removed]
+  e.target.disabled=true;
+  try{await COL.members.add(d);["mNombre","mTel","mFolio"].forEach(i=>$("#"+i).value="");toast("Inscrito guardado")}catch(err){toast(dbErr(err))}
+  e.target.disabled=false;
+});
+$("#eAdd").addEventListener("click",async e=>{
+  const d={fecha:$("#eFecha").value,categoria:$("#eCat").value,monto:Number($("#eMonto").value),concepto:$("#eConc").value.trim(),createdAt:new Date().toISOString()};
+  if(!d.fecha||!(d.monto>0)){toast("Pon fecha y monto");return}
+  // [col check removed]
+  e.target.disabled=true;
+  try{await COL.expenses.add(d);$("#eMonto").value="";$("#eConc").value="";toast("Egreso guardado")}catch(err){toast(dbErr(err))}
+  e.target.disabled=false;
+});
+$("#mSearch").addEventListener("input",()=>renderFin());
+
+function byMonth(arr){const o={};arr.forEach(x=>{const k=ym(x.fecha);if(k)o[k]=(o[k]||0)+(Number(x.monto)||0)});return o}
+
+let chFin=null;
+function renderFin(){
+  const M=S.members,E=S.expenses;
+  const ing=M.reduce((a,x)=>a+(Number(x.monto)||0),0),egr=E.reduce((a,x)=>a+(Number(x.monto)||0),0);
+  const esp=socEsperados();
+  $("#kSoc").textContent=num(M.length);
+  $("#kSocF").textContent=`Meta 500 · la proyección esperaba ${num(esp)} a hoy`;
+  $("#kProg").style.width=Math.min(100,M.length/META*100)+"%";
+  $("#kIng").textContent=money(ing);
+  $("#kIngF").textContent=M.length?`Ticket promedio ${money(ing/M.length)}`:"Sin ventas registradas";
+  $("#kEgr").textContent=money(egr);
+  $("#kEgrF").textContent=E.length?`${E.length} movimientos`:"Sin egresos registrados";
+  const sal=ing-egr;$("#kSal").textContent=money(sal);$("#kSal").className="val "+(sal<0?"neg":"");
+  // mezcla
+  const mix=(key,labels)=>{const g={};M.forEach(x=>{const k=x[key]||"otro";g[k]=g[k]||{n:0,m:0};g[k].n++;g[k].m+=Number(x.monto)||0});
+    const ks=Object.keys(g).sort((a,b)=>g[b].n-g[a].n);
+    if(!ks.length)return `<p class="empty">Aquí verás qué plan y qué canal venden más.</p>`;
+    return ks.map(k=>`<div class="row"><span>${esc(labels?labels[k]||k:k)}</span><span>${num(g[k].n)} · ${Math.round(g[k].n/M.length*100)}%</span><b>${money(g[k].m)}</b><div class="barr"><i style="width:${g[k].n/M.length*100}%"></i></div></div>`).join("")};
+  $("#mixPlan").innerHTML=mix("plan",PLANES);$("#mixCanal").innerHTML=mix("canal");
+  // tablas
+  const q=$("#mSearch").value.trim().toLowerCase();
+  const ms=[...M].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||(b.createdAt||"").localeCompare(a.createdAt||"")).filter(x=>!q||[x.nombre,x.telefono,x.folio].join(" ").toLowerCase().includes(q));
+  $("#tMem").innerHTML=ms.length?ms.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(x.nombre)}</td><td>${esc(x.telefono)}</td><td>${esc(PLANES[x.plan]||x.plan)}</td><td class="n">${money(x.monto)}</td><td>${esc(x.canal)}</td><td>${esc(x.folio)}</td><td><button class="x" data-delm="${x.id}" aria-label="Borrar inscrito ${esc(x.nombre)}">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">${M.length?"Nadie coincide con la búsqueda.":"Todavía no hay inscritos. Registra el primero arriba."}</td></tr>`;
+  const es=[...E].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  $("#tExp").innerHTML=es.length?es.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(x.categoria)}</td><td>${esc(x.concepto)}</td><td class="n">${money(x.monto)}</td><td><button class="x" data-dele="${x.id}" aria-label="Borrar egreso">✕</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Todavía no hay egresos. Registra nómina, marketing o stand arriba.</td></tr>`;
+  // gráfica
+  if(S.tab!=="finanzas"||!window.Chart)return;
+  const im=byMonth(M),em=byMonth(E);const ks=[...new Set([...Object.keys(im),...Object.keys(em)])].sort();
+  const data={labels:ks.map(ymLabel),datasets:[{label:"Ingresos",data:ks.map(k=>im[k]||0),backgroundColor:css("--lime")},{label:"Egresos",data:ks.map(k=>em[k]||0),backgroundColor:css("--blue")}]};
+  const opts=chartOpts();
+  if(chFin){chFin.data=data;chFin.options=opts;chFin.update()}else chFin=new Chart($("#cFin"),{type:"bar",data,options:opts});
+}
+function chartOpts(){
+  const ink=css("--muted"),line=css("--line");
+  return {responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{labels:{color:ink,font:{family:"Barlow"}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+money(c.parsed.y)}}},
+    scales:{x:{ticks:{color:ink},grid:{display:false}},y:{ticks:{color:ink,callback:v=>money(v)},grid:{color:line}}}};
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.delm){const x=S.members.find(m=>m.id===b.dataset.delm);if(!confirm(`¿Borrar a ${x.nombre}?`))return;try{await COL.members.doc(x.id).delete();toast("Inscrito borrado")}catch(err){toast(dbErr(err))}}
+  if(b.dataset.dele){if(!confirm("¿Borrar este egreso?"))return;try{await COL.expenses.doc(b.dataset.dele).delete();toast("Egreso borrado")}catch(err){toast(dbErr(err))}}
+});
+
+/* =====================================================
+   FLUJOS
+===================================================== */
+const SALDO_INI=0;
+const PROY=[ // mes, ingresos, egresos (positivos), saldo
+  ["2026-10",227118,177000],["2026-11",375165,147000],["2026-12",310488,147000],
+  ["2027-01",609589,749355],["2027-02",270915,740554],["2027-03",304771,741475],["2027-04",322703,742083],
+  ["2027-05",339746,760695],["2027-06",351197,810502],["2027-07",432924,812526],["2027-08",456979,813370],
+  ["2027-09",470025,814016],["2027-10",474385,796516],["2027-11",469237,796858],["2027-12",454603,805546]
+];
+let chFlujo=null;
+function renderFlujo(){
+  const im=byMonth(S.members),em=byMonth(S.expenses);const cur=ym(today());
+  let sp=SALDO_INI,sr=0,rows=[],firstNeg=null,realUntil=null;
+  const lab=[],dp=[],dr=[];
+  PROY.forEach(([k,i,e])=>{
+    sp+=i-e;const hasReal=k<=cur;
+    if(hasReal){sr+=(im[k]||0)-(em[k]||0);realUntil=sr}
+    if(sp<0&&!firstNeg)firstNeg=k;
+    rows.push(`<tr class="${k===cur?"now":""}"><td>${ymLabel(k)}</td><td class="n">${money(i)}</td><td class="n">${hasReal?money(im[k]||0):"—"}</td><td class="n">${money(e)}</td><td class="n">${hasReal?money(em[k]||0):"—"}</td><td class="n ${i-e<0?"neg":"pos"}">${money(i-e)}</td><td class="n ${sp<0?"neg":""}">${money(sp)}</td><td class="n ${hasReal&&sr<0?"neg":""}">${hasReal?money(sr):"—"}</td></tr>`);
+    lab.push(ymLabel(k));dp.push(sp);dr.push(hasReal?sr:null);
+  });
+  const ti=PROY.reduce((a,r)=>a+r[1],0),te=PROY.reduce((a,r)=>a+r[2],0);
+  rows.push(`<tr class="total"><td>Total</td><td class="n">${money(ti)}</td><td class="n">${money(Object.values(im).reduce((a,b)=>a+b,0))}</td><td class="n">${money(te)}</td><td class="n">${money(Object.values(em).reduce((a,b)=>a+b,0))}</td><td class="n neg">${money(ti-te)}</td><td class="n neg">${money(sp)}</td><td></td></tr>`);
+  $("#tFlujo").innerHTML=rows.join("");
+  const curRow=PROY.findIndex(r=>r[0]===cur);
+  $("#fProy").textContent=curRow>=0?money(dp[curRow]):"—";
+  $("#fProyF").textContent=curRow>=0?"Fin de "+ymLabel(cur):"Fuera del periodo proyectado";
+  $("#fReal").textContent=money(realUntil||0);$("#fReal").className="val "+((realUntil||0)<0?"neg":"");
+  const dif=curRow>=0?(realUntil||0)-dp[curRow]:0;
+  $("#fRealF").innerHTML=curRow>=0?`<span class="${dif<0?"neg":"pos"}">${dif<0?"":"+"}${money(dif)}</span> contra lo proyectado al cierre del mes`:"";
+  $("#fNeg").textContent=firstNeg?ymLabel(firstNeg):"Nunca";
+  $("#fDic").textContent=money(dp[dp.length-1]);
+  $("#fWarn").innerHTML=`<b>La proyección se queda sin caja en ${firstNeg?ymLabel(firstNeg):"—"}.</b> Ningún mes de 2027 cubre Matrix + renta + nómina con el escenario base; el déficit acumulado llega a ${money(dp[dp.length-1])} en diciembre 2027. Hay que fondear esa diferencia o mejorar la mezcla antes de abrir.`;
+  if(S.tab!=="flujos"||!window.Chart)return;
+  const data={labels:lab,datasets:[
+    {label:"Saldo proyectado",data:dp,borderColor:css("--blue"),backgroundColor:css("--blue"),tension:.25,pointRadius:3},
+    {label:"Saldo real",data:dr,borderColor:css("--lime"),backgroundColor:css("--lime"),tension:.25,pointRadius:4,spanGaps:false}]};
+  const opts=chartOpts();
+  if(chFlujo){chFlujo.data=data;chFlujo.options=opts;chFlujo.update()}else chFlujo=new Chart($("#cFlujo"),{type:"line",data,options:opts});
+}
+
+/* =====================================================
+   PREGUNTAS Y RESPUESTAS
+===================================================== */
+const SECTIONS=[{id:"planes",name:"Planes y precios"},{id:"pagos",name:"Pagos e inscripción"},{id:"apertura",name:"Apertura y ubicación"},{id:"gym",name:"Horario e instalaciones"},{id:"seguimiento",name:"Seguimiento y cierre"},{id:"otros",name:"Otros"}];
+const RULES=[
+  "Habla de tú, en tono informal y cercano, como en WhatsApp. Usa emojis con moderación (🙌 💪 ⚡ 🔥).",
+  "Usa *asteriscos* para negritas de WhatsApp.",
+  "El plan de $998 por 3 meses se llama *2+1er Mes Gratis*; nunca lo llames solo '1er Mes Gratis'. Siempre que pongas el precio escribe '$998 por 3 meses', nunca '$998' solo, para que no parezca el precio de un mes.",
+  "No digas 'low cost'.",
+  "No prometas nada que no tengamos ni datos que no estén en la base: si falta información, no la inventes; di 'Déjame confirmarlo y te aviso por aquí'.",
+  "No digas 'muchos clientes' ni 'los más elegidos'.",
+  "No hables mal de un plan para vender otro.",
+  "Siempre cierra con una pregunta que acerque al registro, cuando tenga sentido.",
+  "Mensaje corto: máximo unas 6 líneas, salvo que la pregunta pida detalle."
+];
+const PENDING=["Qué pasa después de los 3 meses del 2+1er Mes Gratis (cobro automático de $499 por definir).","Fecha oficial de cierre de la preventa.","Precio normal después de la apertura.","Fecha exacta de apertura (se dice 'enero 2027').","Correo para CVs."];
+const Q={filter:"all",q:"",open:new Set(),editing:null};
+const wa=s=>esc(s).replace(/\*([^*\n]+)\*/g,"<strong>$1</strong>");
+const secName=id=>(SECTIONS.find(s=>s.id===id)||SECTIONS[5]).name;
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copiado");return}catch(e){}
+  const ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");toast("Copiado")}catch(e){toast("Selecciona el texto y cópialo")}ta.remove()}
+function renderFaq(){
+  const F=S.faqs;const cnt={all:F.length};SECTIONS.forEach(s=>cnt[s.id]=F.filter(i=>i.section===s.id).length);
+  $("#chips").innerHTML=[{id:"all",name:"Todas"},...SECTIONS].map(o=>`<button class="chip" data-f="${o.id}" aria-pressed="${Q.filter===o.id}">${esc(o.name)}<small>${cnt[o.id]||0}</small></button>`).join("");
+  // [db check removed]
+  const q=Q.q.trim().toLowerCase();
+  const vis=F.filter(i=>(Q.filter==="all"||i.section===Q.filter)&&(!q||(i.q+" "+i.a+" "+(i.note||"")).toLowerCase().includes(q)));
+  if(!F.length){$("#qList").innerHTML=`<p class="empty">Todavía no hay respuestas guardadas. Escribe arriba la pregunta de un cliente para crear la primera.</p>`;return}
+  if(!vis.length){$("#qList").innerHTML=`<p class="empty">Ninguna respuesta coincide con “${esc(Q.q)}”. Pégala arriba como pregunta de cliente para generar una.</p>`;return}
+  $("#qList").innerHTML=SECTIONS.map(s=>{const its=vis.filter(i=>i.section===s.id);if(!its.length)return"";
+    return `<div class="sec"><h3>${esc(s.name)}</h3>${its.map(it=>{const open=Q.open.has(it.id),ed=Q.editing===it.id;
+      const body=ed?`<div class="edit"><label for="eq-${it.id}">Pregunta</label><input id="eq-${it.id}" value="${esc(it.q)}"><label for="es-${it.id}">Sección</label><select id="es-${it.id}">${SECTIONS.map(x=>`<option value="${x.id}" ${x.id===it.section?"selected":""}>${esc(x.name)}</option>`).join("")}</select><label for="ea-${it.id}">Respuesta</label><textarea id="ea-${it.id}">${esc(it.a)}</textarea><label for="en-${it.id}">Nota interna (no se manda)</label><input id="en-${it.id}" value="${esc(it.note)}"><div class="actions"><button class="act primary" data-qsave="${it.id}">Guardar cambios</button><button class="act" data-qcancel="1">Cancelar</button></div></div>`
+        :`<div class="bubble">${wa(it.a)}</div>${it.note?`<div class="note" style="margin-top:8px"><b>Nota:</b> ${esc(it.note)}</div>`:""}<div class="actions"><button class="act primary" data-qcopy="${it.id}">Copiar respuesta</button><button class="act" data-qedit="${it.id}">Editar</button><button class="act danger" data-qdel="${it.id}">Borrar</button></div>`;
+      return `<div class="item ${open?"open":""}" id="it-${it.id}"><button class="q" data-qt="${it.id}" aria-expanded="${open}"><span>${esc(it.q)}${it.source==="ia"?'<span class="tag">Nueva</span>':""}</span><span class="chev" aria-hidden="true">›</span></button><div class="body">${body}</div></div>`}).join("")}</div>`}).join("");
+}
+$("#qSearch").addEventListener("input",e=>{Q.q=e.target.value;renderFaq()});
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button");if(!t)return;const d=t.dataset;const find=id=>S.faqs.find(i=>i.id===id);
+  if(d.f){Q.filter=d.f;renderFaq()}
+  else if(d.qt){Q.open.has(d.qt)?Q.open.delete(d.qt):Q.open.add(d.qt);renderFaq()}
+  else if(d.qcopy){copyText(find(d.qcopy).a)}
+  else if(d.qedit){Q.editing=d.qedit;renderFaq()}
+  else if(d.qcancel){Q.editing=null;renderFaq()}
+  else if(d.qsave){const id=d.qsave;const v={q:$("#eq-"+id).value.trim(),section:$("#es-"+id).value,a:$("#ea-"+id).value,note:$("#en-"+id).value.trim()};
+    if(!v.q||!v.a){toast("La pregunta y la respuesta no pueden ir vacías");return}
+    t.disabled=true;try{await COL.faqs.doc(id).update(v);Q.editing=null;toast("Cambios guardados")}catch(err){t.disabled=false;toast(dbErr(err))}}
+  else if(d.qdel){const it=find(d.qdel);if(!confirm(`¿Borrar “${it.q}”?`))return;try{await COL.faqs.doc(it.id).delete();toast("Respuesta borrada")}catch(err){toast(dbErr(err))}}
+  else if(d.copynew){copyText(d.copynew)}
+  else if(d.goto){Q.filter="all";Q.q="";$("#qSearch").value="";Q.open.add(d.goto);renderFaq();document.getElementById("it-"+d.goto)?.scrollIntoView({behavior:"smooth",block:"center"})}
+});
+function faqPrompt(question){
+  const base=S.faqs.map(i=>({id:i.id,section:i.section,pregunta:i.q,respuesta:i.a,nota:i.note||""}));
+  return `Eres quien contesta el WhatsApp de ventas de CRACKS GYM, un gimnasio en preventa en Soriana Híper Vado del Río, Hermosillo, Sonora.
+
+Tu trabajo: escribir la respuesta para un cliente, lista para copiar y pegar en WhatsApp, usando SOLO la información de la BASE. La base es la fuente de verdad sobre planes, precios, horarios, ubicación e instalaciones.
+
+REGLAS DE TONO Y CONTENIDO:
+${RULES.map(r=>"- "+r).join("\n")}
+
+TEMAS SIN DEFINIR (no los prometas; si el cliente pregunta por ellos, responde sin inventar y anótalo en "nota"):
+${PENDING.map(r=>"- "+r).join("\n")}
+
+SECCIONES VÁLIDAS: ${SECTIONS.map(s=>s.id+" ("+s.name+")").join(", ")}
+
+BASE (JSON):
+${JSON.stringify(base)}
+
+MENSAJE DEL CLIENTE:
+"""${question}"""
+
+Devuelve SOLO un objeto JSON, sin texto alrededor, con esta forma:
+{"duplicado_de": "<id de la base>" o null, "seccion": "<id de sección>", "pregunta": "<la pregunta redactada de forma general y corta, como título>", "respuesta": "<mensaje para WhatsApp>", "nota": "<nota interna breve para el vendedor, o cadena vacía>"}
+
+"duplicado_de" va con un id SOLO si una pregunta de la base ya responde exactamente lo mismo; en ese caso igual escribe "respuesta" adaptada al mensaje del cliente.`;
+}
+let busy=false;
+$("#askBtn").addEventListener("click",async()=>{
+  const q=$("#askInput").value.trim();if(!q){$("#askInput").focus();return}if(busy)return;
+  // [sample check removed]
+  // [col check removed]
+  busy=true;$("#askBtn").disabled=true;$("#askStatus").textContent="Pensando…";$("#askResult").innerHTML="";
+  try{
+    const r=await sample.json(faqPrompt(q),{cache:false});
+    const sec=SECTIONS.some(s=>s.id===r.seccion)?r.seccion:"otros";const answer=String(r.respuesta||"").trim();if(!answer)throw {code:"empty"};
+    const dup=r.duplicado_de&&S.faqs.find(i=>i.id===r.duplicado_de);
+    const card=(title,meta,id,link)=>`<div class="result"><p style="font-weight:700;margin:0">${esc(title)}</p><div class="note" style="margin-bottom:10px">${esc(meta)}</div><div class="bubble">${wa(answer)}</div>${r.nota?`<div class="note" style="margin-top:8px"><b>Nota:</b> ${esc(r.nota)}</div>`:""}<div class="actions"><button class="act primary" data-copynew="${esc(answer)}">Copiar respuesta</button><button class="act" data-goto="${id}">${link}</button></div></div>`;
+    if(dup){$("#askStatus").textContent="Esa pregunta ya estaba guardada; no se duplicó.";$("#askResult").innerHTML=card(dup.q,secName(dup.section)+" · ya existía",dup.id,"Ver la guardada")}
+    else{const doc={section:sec,q:String(r.pregunta||q).trim(),a:answer,note:String(r.nota||"").trim(),source:"ia",order:Date.now(),createdAt:new Date().toISOString(),clientMessage:q};
+      const ref=await COL.faqs.add(doc);$("#askStatus").textContent="Guardada en "+secName(sec)+".";$("#askResult").innerHTML=card(doc.q,"Nueva en "+secName(sec),ref.id,"Ver o editar");$("#askInput").value=""}
+  }catch(e){const m={not_granted:"Necesitas permitir que la página use Claude para generar respuestas.",rate_limited:"Muchas solicitudes seguidas. Espera un momento y vuelve a intentar.",invalid_json:"La respuesta salió incompleta. Intenta de nuevo.",quota_exceeded:"Se llenó el espacio de respuestas. Borra algunas que ya no uses.",invalid_argument:"No tienes permiso para guardar respuestas aquí."};
+    $("#askStatus").textContent=m[e&&e.code]||"No se pudo generar la respuesta. Intenta de nuevo."}
+  finally{busy=false;$("#askBtn").disabled=false}
+});
+
+/* =====================================================
+   UBICACIONES
+===================================================== */
+// [dedup]
+const LAT0=29.085,LNG0=-111.0745,COS0=Math.cos(LAT0*Math.PI/180),K=1000;
+const px=(lng,lat)=>[(lng-LNG0)*COS0*K,(LAT0-lat)*K];
+const unpx=(x,y)=>[x/(COS0*K)+LNG0,LAT0-y/K];
+const KM=K/110.574;
+// [dedup]
+const MAP={vb:null,full:null,add:false,sel:null,built:false};
+// [dedup]
+function zoneStats(p){
+  const R=Number(p.radioKm)||0,T=Number(p.minutos)||0,V=Number(p.velocidad)||30;
+  const r={n:0,p:0,a:0,v:0},t={n:0,p:0,a:0,v:0},inR=new Set(),inT=new Set();
+  window.GEO.forEach((g,i)=>{const d=hav(p.lat,p.lng,g.c[1],g.c[0]);
+    if(R&&d<=R){inR.add(i);r.n++;r.p+=g.p||0;r.a+=g.a||0;r.v+=g.v||0}
+    if(T&&d*1.3/V*60<=T){inT.add(i);t.n++;t.p+=g.p||0;t.a+=g.a||0;t.v+=g.v||0}});
+  return {r,t,inR,inT};
+}
+function mapInit(){
+  if(MAP.built){drawZones();return}
+  const svg=$("#map");let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  const paths=window.GEO.map((g,i)=>{const d=g.r.map(ring=>"M"+ring.map(([lng,lat])=>{const [x,y]=px(lng,lat);minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y);return x.toFixed(2)+" "+y.toFixed(2)}).join("L")+"Z").join("");
+    return `<path class="col" data-i="${i}" d="${d}"/>`});
+  $("#gCol").innerHTML=paths.join("");
+  const pad=4;MAP.full={x:minx-pad,y:miny-pad,w:maxx-minx+pad*2,h:maxy-miny+pad*2};MAP.vb={...MAP.full};
+  MAP.built=true;applyVB();bindMap();drawZones();
+}
+function applyVB(){const v=MAP.vb;$("#map").setAttribute("viewBox",`${v.x} ${v.y} ${v.w} ${v.h}`);drawPts()}
+function svgPt(cx,cy){const svg=$("#map");const p=svg.createSVGPoint();p.x=cx;p.y=cy;return p.matrixTransform(svg.getScreenCTM().inverse())}
+function zoom(f,cx,cy){const v=MAP.vb;if(cx==null){cx=v.x+v.w/2;cy=v.y+v.h/2}
+  const nw=Math.min(MAP.full.w*1.5,Math.max(2,v.w*f)),k=nw/v.w;MAP.vb={x:cx-(cx-v.x)*k,y:cy-(cy-v.y)*k,w:nw,h:v.h*k};applyVB()}
+function bindMap(){
+  const svg=$("#map"),tip=$("#tip"),box=$("#mapbox");const pts=new Map();let drag=null,moved=false,pinch=null;
+  svg.addEventListener("wheel",e=>{e.preventDefault();const p=svgPt(e.clientX,e.clientY);zoom(e.deltaY>0?1.2:1/1.2,p.x,p.y)},{passive:false});
+  svg.addEventListener("pointerdown",e=>{svg.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;
+    if(pts.size===1)drag={x:e.clientX,y:e.clientY,vb:{...MAP.vb},target:e.target};
+    if(pts.size===2){const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),vb:{...MAP.vb}};drag=null}});
+  svg.addEventListener("pointermove",e=>{
+    if(pts.has(e.pointerId))pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&pts.size===2){const [a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);MAP.vb={...pinch.vb};const m=svgPt((a.x+b.x)/2,(a.y+b.y)/2);zoom(pinch.d/d,m.x,m.y);moved=true;return}
+    if(drag){const r=svg.getBoundingClientRect();const s=Math.max(drag.vb.w/r.width,drag.vb.h/r.height);const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+      if(Math.abs(dx)+Math.abs(dy)>4){moved=true;svg.classList.add("dragging")}
+      if(moved){MAP.vb={...drag.vb,x:drag.vb.x-dx*s,y:drag.vb.y-dy*s};applyVB()}return}
+    const el=e.target.closest(".col");if(el){const g=window.GEO[+el.dataset.i];const br=box.getBoundingClientRect();
+      tip.style.display="block";tip.style.left=Math.min(e.clientX-br.left+12,br.width-230)+"px";tip.style.top=(e.clientY-br.top+12)+"px";
+      tip.innerHTML=`<b>${esc(g.n)}</b><br>${g.p!=null?num(g.p)+" habitantes · "+num(g.a)+" de 18 a 59":"Sin dato de población"}`}else tip.style.display="none"});
+  const up=async e=>{pts.delete(e.pointerId);svg.classList.remove("dragging");if(pts.size<2)pinch=null;
+    if(drag&&!moved){const ptEl=drag.target&&drag.target.closest?drag.target.closest(".pt"):null;
+      if(ptEl){selectPt(ptEl.dataset.id)}
+      else if(MAP.add){const p=svgPt(e.clientX,e.clientY);const [lng,lat]=unpx(p.x,p.y);await addPoint(lat,lng)}}
+    drag=null};
+  svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",()=>{pts.clear();drag=null;pinch=null;svg.classList.remove("dragging")});
+  svg.addEventListener("pointerleave",()=>{tip.style.display="none"});
+  $("#zIn").onclick=()=>zoom(1/1.5);$("#zOut").onclick=()=>zoom(1.5);$("#zFit").onclick=()=>{MAP.vb={...MAP.full};applyVB()};
+  $("#addMode").onclick=()=>{MAP.add=!MAP.add;$("#mapbox").classList.toggle("adding",MAP.add);$("#addMode").textContent=MAP.add?"Toca el mapa…":"Agregar punto"};
+}
+async function addPoint(lat,lng){
+  if(!COL.locs){toast("Abre el dashboard desde Claude para guardar puntos");return}
+  const d={nombre:"Punto nuevo",tipo:"prospecto",lat:+lat.toFixed(6),lng:+lng.toFixed(6),radioKm:2,minutos:8,velocidad:30,nota:"",createdAt:new Date().toISOString()};
+  try{const ref=await COL.locs.add(d);MAP.sel=ref.id;MAP.add=false;$("#mapbox").classList.remove("adding");$("#addMode").textContent="Agregar punto";toast("Punto agregado: ponle nombre")}catch(err){toast(dbErr(err))}
+}
+function selectPt(id){MAP.sel=id;renderLocs()}
+function drawPts(){
+  if(!MAP.built)return;const v=MAP.vb;const r=v.w/110,fs=v.w/55;
+  $("#gPts").innerHTML=S.locs.map(p=>{const [x,y]=px(p.lng,p.lat);const c=(TIPOS[p.tipo]||TIPOS.otro).c;
+    return `<circle class="pt ${p.id===MAP.sel?"sel":""}" data-id="${p.id}" cx="${x}" cy="${y}" r="${r}" fill="${c}"><title>${esc(p.nombre)}</title></circle><text class="ptlab" x="${x+r*1.4}" y="${y+fs*.35}" font-size="${fs}">${esc(p.nombre)}</text>`}).join("");
+}
+function drawZones(){
+  if(!MAP.built)return;const p=S.locs.find(l=>l.id===MAP.sel);
+  document.querySelectorAll("#gCol .col").forEach(el=>el.classList.remove("r","t"));$("#gRing").innerHTML="";
+  if(!p){drawPts();return}
+  const z=zoneStats(p);z.inR.forEach(i=>$(`#gCol .col[data-i="${i}"]`).classList.add("r"));z.inT.forEach(i=>$(`#gCol .col[data-i="${i}"]`).classList.add("t"));
+  const [x,y]=px(p.lng,p.lat);if(p.radioKm>0)$("#gRing").innerHTML=`<circle class="ring" cx="${x}" cy="${y}" r="${p.radioKm*KM}"/>`;
+  drawPts();
+}
+function renderLocs(){
+  const L=S.locs;
+  $("#plist").innerHTML=L.length?L.map(p=>`<button data-psel="${p.id}" aria-pressed="${p.id===MAP.sel}"><span class="dot" style="background:${(TIPOS[p.tipo]||TIPOS.otro).c}"></span>${esc(p.nombre)}<span class="note" style="margin-left:auto">${esc((TIPOS[p.tipo]||TIPOS.otro).n)}</span></button>`).join(""):`<p class="empty">Sin puntos todavía.</p>`;
+  const p=L.find(l=>l.id===MAP.sel);
+  if(!p){$("#pEdit").innerHTML=`<p class="empty">Toca “Agregar punto” y luego el mapa, o elige un punto de la lista.</p>`}
+  else{const z=zoneStats(p);
+    $("#pEdit").innerHTML=`<div class="form">
+      <label class="wide">Nombre<input id="pNom" value="${esc(p.nombre)}"></label>
+      <label>Tipo<select id="pTipo">${Object.entries(TIPOS).map(([k,t])=>`<option value="${k}" ${k===p.tipo?"selected":""}>${t.n}</option>`).join("")}</select></label>
+      <label>Radio (km)<input id="pRad" type="number" min="0" step="0.5" value="${p.radioKm}"></label>
+      <label>Minutos en auto<input id="pMin" type="number" min="0" step="1" value="${p.minutos}"></label>
+      <label>Velocidad prom. (km/h)<input id="pVel" type="number" min="5" step="1" value="${p.velocidad||30}"></label>
+      <label class="wide">Nota<input id="pNota" value="${esc(p.nota)}"></label>
+      <div class="wide actions" style="margin-top:0"><button class="btn" id="pSave">Guardar</button><button class="btn ghost" id="pDel" style="color:var(--danger)">Borrar punto</button></div></div>
+      <div class="stat"><span style="grid-column:1/-1;font-weight:700;margin-top:8px">A ${esc(p.radioKm)} km a la redonda</span>
+        <span>Colonias</span><b>${num(z.r.n)}</b><span>Habitantes</span><b>${num(z.r.p)}</b><span>De 18 a 59 años</span><b>${num(z.r.a)}</b><span>Viviendas</span><b>${num(z.r.v)}</b>
+        <span style="grid-column:1/-1;font-weight:700;margin-top:8px">A ${esc(p.minutos)} min en auto (estimado)</span>
+        <span>Colonias</span><b>${num(z.t.n)}</b><span>Habitantes</span><b>${num(z.t.p)}</b><span>De 18 a 59 años</span><b>${num(z.t.a)}</b><span>Viviendas</span><b>${num(z.t.v)}</b></div>
+      <p class="note" style="margin-top:8px">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</p>`;
+    $("#pSave").onclick=async()=>{const v={nombre:$("#pNom").value.trim()||"Sin nombre",tipo:$("#pTipo").value,radioKm:Number($("#pRad").value)||0,minutos:Number($("#pMin").value)||0,velocidad:Number($("#pVel").value)||30,nota:$("#pNota").value.trim()};
+      try{await COL.locs.doc(p.id).update(v);toast("Punto guardado")}catch(err){toast(dbErr(err))}};
+    $("#pDel").onclick=async()=>{if(!confirm(`¿Borrar ${p.nombre}?`))return;try{await COL.locs.doc(p.id).delete();MAP.sel=null;toast("Punto borrado")}catch(err){toast(dbErr(err))}};
+  }
+  $("#tCmp").innerHTML=L.length?L.map(p=>{const z=zoneStats(p);return `<tr><td>${esc(p.nombre)}</td><td class="n">${num(z.r.p)}</td><td class="n">${num(z.t.p)}</td></tr>`}).join(""):`<tr><td colspan="3" class="empty">Agrega puntos para compararlos.</td></tr>`;
+  drawZones();
+}
+document.addEventListener("click",e=>{const b=e.target.closest("button[data-psel]");if(b)selectPt(b.dataset.psel)});
+
+/* ---------- arranque ---------- */
+try{const t=localStorage.getItem("cg-tab");if(t&&document.getElementById("tab-"+t))S.tab=t}catch(e){}
+setTab(S.tab);renderFaq();renderLocs();
+(async()=>{
+  // [claude check removed]
+  try{[db,sample]=await Promise.all([claude.use("db"),claude.use("sample")])}catch(e){db=null}
+  // [db check removed]
+  COL={faqs:db.collection("faqs"),members:db.collection("members"),expenses:db.collection("expenses"),locs:db.collection("locations")};
+  const lost=()=>toast("Se perdió la conexión con los datos. Recarga la página.");
+  const idx=id=>{const n=SECTIONS.findIndex(s=>s.id===id);return n<0?99:n};
+  COL.faqs.onSnapshot(s=>{S.faqs=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>idx(a.section)-idx(b.section)||(a.order||0)-(b.order||0));renderFaq()},lost);
+  COL.members.onSnapshot(s=>{S.members=s.docs.map(d=>({id:d.id,...d.data()}));renderFin();renderFlujo()},lost);
+  COL.expenses.onSnapshot(s=>{S.expenses=s.docs.map(d=>({id:d.id,...d.data()}));renderFin();renderFlujo()},lost);
+  COL.locs.onSnapshot(s=>{S.locs=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));if(!MAP.sel&&S.locs[0])MAP.sel=S.locs[0].id;renderLocs()},lost);
+  if(!sample)$("#askStatus").textContent="La respuesta automática no está disponible en esta vista.";
+})();
+
+
+/* ============ ARRANQUE ============ */
+(()=>{
+  loadAll().catch(e=>console.warn("loadAll:",e));
+  const saved=(()=>{try{return localStorage.getItem("cg-tab")}catch(e){}return null})();
+  setTab(saved||"finanzas");
+})();
+</script>
+
+<script>
+/* ===== MAPA GOOGLE MAPS ===== */
+
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+// [dedup]
+
+let map,dataLayer,addMode=false,addListener=null,markers={},circle=null,sel=null;
+const LS_KEY="cg-map-points-v1";
+function load(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"[]")}catch(e){return[]}}
+function save(points){try{localStorage.setItem(LS_KEY,JSON.stringify(points))}catch(e){toast("No se pudo guardar en este navegador")}}
+let POINTS=load();
+
+function initMap(){
+  const bounds=new google.maps.LatLngBounds();
+  window.GEO.forEach(g=>g.r.forEach(ring=>ring.forEach(([lng,lat])=>bounds.extend({lat,lng}))));
+  map=new google.maps.Map($("#map"),{center:bounds.getCenter(),zoom:12,mapTypeControl:false,streetViewControl:false,fullscreenControl:true});
+  map.fitBounds(bounds);
+
+  dataLayer=new google.maps.Data({map});
+  const fc={type:"FeatureCollection",features:window.GEO.map((g,i)=>({type:"Feature",properties:{idx:i,n:g.n,p:g.p,a:g.a,v:g.v,e:g.e},
+    geometry:{type:g.r.length>1?"MultiPolygon":"Polygon",coordinates:g.r.length>1?g.r.map(ring=>[ring]):g.r}}))};
+  dataLayer.addGeoJson(fc);
+  dataLayer.setStyle({fillColor:"#FFFFFF",fillOpacity:.35,strokeColor:"#8A93A3",strokeWeight:.7});
+  const iw=new google.maps.InfoWindow();
+  dataLayer.addListener("click",e=>{
+    if(addMode){addPoint(e.latLng.lat(),e.latLng.lng());toggleAddMode();return}
+    const f=e.feature;const p=f.getProperty("p");
+    iw.setContent(`<div style="font-family:Barlow,sans-serif;min-width:160px;color:#15171C;background:#fff;padding:2px 4px"><b style="color:#15171C">${esc(f.getProperty("n"))}</b><br>${p!=null?num(p)+" habitantes<br>"+num(f.getProperty("a"))+" de 18 a 59 años":"Sin dato de población"}</div>`);
+    iw.setPosition(e.latLng);iw.open(map);
+  });
+
+  $("#addMode").addEventListener("click",toggleAddMode);
+  renderPoints();
+}
+function toggleAddMode(){
+  addMode=!addMode;
+  $("#addMode").textContent=addMode?"Toca el mapa…":"Agregar punto";
+  $("#addHint").style.display=addMode?"none":"block";
+  map.setOptions({draggableCursor:addMode?"crosshair":null});
+  if(addMode){addListener=map.addListener("click",e=>{addPoint(e.latLng.lat(),e.latLng.lng());toggleAddMode()})}
+  else if(addListener){google.maps.event.removeListener(addListener);addListener=null}
+}
+function addPoint(lat,lng){
+  const p={id:"p"+Date.now(),nombre:"Punto nuevo",tipo:"prospecto",lat:+lat.toFixed(6),lng:+lng.toFixed(6),radioKm:2,minutos:8,velocidad:30,real:null};
+  POINTS.push(p);save(POINTS);sel=p.id;renderPoints();toast("Punto agregado: ponle nombre");
+}
+function makeMarker(p){
+  const m=new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map,draggable:true,title:p.nombre,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:(TIPOS[p.tipo]||TIPOS.otro).c,fillOpacity:1,strokeColor:"#fff",strokeWeight:2}});
+  m.addListener("click",()=>{sel=p.id;renderPoints()});
+  m.addListener("dragend",e=>{p.lat=+e.latLng.lat().toFixed(6);p.lng=+e.latLng.lng().toFixed(6);p.iso=null;p.meta=null;p.gyms=null;save(POINTS);renderPoints()});
+  return m;
+}
+function syncMarkers(){
+  Object.keys(markers).forEach(id=>{if(!POINTS.find(p=>p.id===id)){markers[id].setMap(null);delete markers[id]}});
+  POINTS.forEach(p=>{if(!markers[p.id])markers[p.id]=makeMarker(p);else{markers[p.id].setPosition({lat:p.lat,lng:p.lng});markers[p.id].setIcon({path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:(TIPOS[p.tipo]||TIPOS.otro).c,fillOpacity:1,strokeColor:"#fff",strokeWeight:2})}});
+}
+function pointInRings(lng,lat,rings){
+  // rings: array de anillos [[ [lng,lat], ... ]]; impar = dentro
+  let inside=false;
+  for(const ring of rings){
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+      if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))inside=!inside;
+    }
+  }
+  return inside;
+}
+function zoneSets(p){
+  const R=Number(p.radioKm)||0,T=Number(p.minutos)||0;
+  const inR=new Set(),inT=new Set();let usedReal=false;
+  const iso=p.iso&&p.iso.minutos===T?p.iso.rings:null;
+  window.GEO.forEach((g,i)=>{
+    if(R&&hav(p.lat,p.lng,g.c[1],g.c[0])<=R)inR.add(i);
+    if(T){
+      if(iso){usedReal=true;if(pointInRings(g.c[0],g.c[1],iso))inT.add(i)}
+      else{const est=hav(p.lat,p.lng,g.c[1],g.c[0])*1.3/(Number(p.velocidad)||30)*60;if(est<=T)inT.add(i)}
+    }
+  });
+  return {inR,inT,usedReal};
+}
+function sumZone(set){const s={n:0,p:0,a:0,v:0};set.forEach(i=>{const g=window.GEO[i];s.n++;s.p+=g.p||0;s.a+=g.a||0;s.v+=g.v||0});return s}
+function recolor(){
+  const p=POINTS.find(x=>x.id===sel);
+  if(!p){dataLayer.revertStyle();return}
+  const {inR,inT}=zoneSets(p);
+  dataLayer.forEach(f=>{
+    const i=f.getProperty("idx"),r=inR.has(i),t=inT.has(i);
+    if(r&&t)dataLayer.overrideStyle(f,{fillColor:"#9FD86A",fillOpacity:.65,strokeColor:"#5C8F3A",strokeWeight:.8});
+    else if(r)dataLayer.overrideStyle(f,{fillColor:"#C9D7FA",fillOpacity:.6,strokeColor:"#6C8AD9",strokeWeight:.8});
+    else if(t)dataLayer.overrideStyle(f,{fillColor:"#CFF0A8",fillOpacity:.6,strokeColor:"#8FBE5E",strokeWeight:.8});
+    else dataLayer.overrideStyle(f,{fillColor:"#FFFFFF",fillOpacity:.25,strokeColor:"#8A93A3",strokeWeight:.6});
+  });
+  if(circle)circle.setMap(null);
+  circle=p.radioKm>0?new google.maps.Circle({map,center:{lat:p.lat,lng:p.lng},radius:p.radioKm*1000,fillOpacity:0,strokeColor:"#1E4FD8",strokeOpacity:.9,strokeWeight:2}):null;
+  if(isoPoly){isoPoly.setMap(null);isoPoly=null}
+  if(p.iso&&p.iso.minutos===(Number(p.minutos)||0)&&p.iso.rings&&p.iso.rings.length){
+    isoPoly=new google.maps.Polygon({map,paths:p.iso.rings.map(r=>r.map(([lng,lat])=>({lat,lng}))),
+      fillOpacity:0,strokeColor:"#2E7D32",strokeOpacity:.95,strokeWeight:2.5});
+  }
+}
+let isoPoly=null;
+function renderPoints(){
+  syncMarkers();
+  $("#plist").innerHTML=POINTS.length?POINTS.map(p=>`<button data-psel="${p.id}" aria-pressed="${p.id===sel}"><span class="dot" style="background:${(TIPOS[p.tipo]||TIPOS.otro).c}"></span>${esc(p.nombre)}</button>`).join(""):`<p class="note">Sin puntos todavía.</p>`;
+  document.querySelectorAll("[data-psel]").forEach(b=>b.addEventListener("click",()=>{sel=b.dataset.psel;renderPoints()}));
+  const p=POINTS.find(x=>x.id===sel);
+  $("#editCard").style.display=p?"block":"none";
+  if(p){
+    $("#pNom").value=p.nombre;$("#pTipo").value=p.tipo;$("#pRad").value=p.radioKm;$("#pMin").value=p.minutos;$("#pVel").value=p.velocidad;
+    $("#pCoord").textContent=p.lat.toFixed(5)+", "+p.lng.toFixed(5);
+    const {inR,inT,usedReal}=zoneSets(p);const zr=sumZone(inR),zt=sumZone(inT);
+    $("#pStat").innerHTML=`<span style="grid-column:1/-1;font-weight:700;margin-top:4px">A ${esc(p.radioKm)} km a la redonda</span>
+      <span>Colonias</span><b>${num(zr.n)}</b><span>Habitantes</span><b>${num(zr.p)}</b><span>De 18 a 59 años</span><b>${num(zr.a)}</b>
+      <span style="grid-column:1/-1;font-weight:700;margin-top:8px">A ${esc(p.minutos)} min ${usedReal?"(real, Google)":"(estimado)"}</span>
+      <span>Colonias</span><b>${num(zt.n)}</b><span>Habitantes</span><b>${num(zt.p)}</b><span>De 18 a 59 años</span><b>${num(zt.a)}</b>`;
+    $("#pCalcNote").textContent=(p.iso&&p.iso.minutos===(Number(p.minutos)||0))?`Área real calculada el ${new Date(p.iso.at).toLocaleString("es-MX")} (contorno verde en el mapa).`:"Sin calcular todavía: la zona de minutos se muestra con una estimación (línea recta × 1.3). Dale \"Calcular con Google\" para el área real manejando.";
+    const mf=p.metaFiltros||{};
+    $("#mEdadMin").value=mf.ageMin||18;$("#mEdadMax").value=mf.ageMax||65;
+    $("#mGenero").value=mf.genero||"todos";$("#mDispositivo").value=mf.dispositivo||"todos";
+    $("#mInteres").value=mf.interes||"ninguno";$("#mComport").value=mf.comportamiento||"ninguno";
+    $("#mEstado").value=mf.estado||"todos";$("#mEscolar").value=mf.escolar||"todos";
+    if(p.meta){
+      const m=p.meta;
+      $("#mNote").innerHTML=m.error?`<span style="color:var(--danger)">${esc(m.error)}</span>`:
+        `<b>${num(m.lower)} – ${num(m.upper)}</b> cuentas activas<br>${[`${m.ageMin}-${m.ageMax} años`,m.genero&&m.genero!=="todos"?({1:"Hombres",2:"Mujeres"}[m.genero]||""):null,m.interes&&m.interes!=="ninguno"?`+ interés fitness`:null,m.comportamiento&&m.comportamiento!=="ninguno"?"+ comportamiento":null,m.estado&&m.estado!=="todos"?"+ estado civil":null,m.escolar&&m.escolar!=="todos"?"+ escolaridad":null].filter(Boolean).join(", ")}<br><span class="note">Consultado el ${new Date(m.at).toLocaleString("es-MX")}, radio ${m.radioKm} km</span>`;
+    }else{$("#mNote").textContent="Sin consultar todavía."}
+    renderGyms(p);
+    if(window.google&&map)drawGymMarkers(p);
+  }
+  recolor();
+}
+const NICHO_RE=/\b(yoga|pilates|pole|barre|spinning|spin|cycl|crossfit|cross fit|box|boxe|boxing|kick|muay|jiu|judo|karate|taekwon|mma|artes marciales|baile|dance|zumba|danza|nataci|aqua|swim|climb|escalad|reforma|terapia|rehab|fisio|funcional|hiit|calisten|gimnasia)\b/i;
+let gymFilter="todos";
+function clasifica(name){return NICHO_RE.test(name||"")?"nicho":"tradicional"}
+function renderGyms(p){
+  if(!p.gyms){$("#gNote").textContent="Sin buscar todavía. Usa el radio (km) de arriba.";$("#gList").innerHTML="";return}
+  if(p.gyms.error){$("#gNote").innerHTML=`<span style="color:var(--danger)">${esc(p.gyms.error)}</span>`;$("#gList").innerHTML="";return}
+  const all=p.gyms.list;
+  const trad=all.filter(g=>g.cat==="tradicional"),nicho=all.filter(g=>g.cat==="nicho");
+  const L=gymFilter==="tradicional"?trad:gymFilter==="nicho"?nicho:all;
+  $("#gNote").innerHTML=`<b>${all.length}</b> a ${p.gyms.radioKm} km · ${trad.length} tradicionales, ${nicho.length} de nicho · ${new Date(p.gyms.at).toLocaleString("es-MX")}`;
+  const chips=`<div class="row" style="gap:6px;margin:8px 0">
+    ${[["todos","Todos"],["tradicional","Tradicionales"],["nicho","De nicho"]].map(([k,t])=>`<button class="act ${gymFilter===k?"primary":""}" data-gfilter="${k}" style="padding:6px 10px;font-size:12px">${t}</button>`).join("")}</div>`;
+  $("#gList").innerHTML=chips+(L.length?`<div class="stat">`+L.map(g=>{
+    const d=hav(p.lat,p.lng,g.lat,g.lng);const dot=g.cat==="tradicional"?"🟥":"🟦";
+    return `<span>${dot} ${esc(g.name)}${g.rating?` ⭐${g.rating}`:""}</span><b>${d.toFixed(1)} km</b>`}).join("")+`</div>`:`<p class="note">Ninguno en esta categoría.</p>`);
+  document.querySelectorAll("[data-gfilter]").forEach(b=>b.addEventListener("click",()=>{gymFilter=b.dataset.gfilter;renderGyms(p);drawGymMarkers(p)}));
+}
+$("#gBuscar").addEventListener("click",async()=>{
+  const p=POINTS.find(x=>x.id===sel);if(!p)return;
+  const radioKm=Math.max(.1,Number(p.radioKm)||2);const radiusM=Math.min(50000,radioKm*1000);
+  $("#gBuscar").disabled=true;$("#gNote").textContent="Buscando…";$("#gList").innerHTML="";
+  try{
+    const res=await fetch("https://places.googleapis.com/v1/places:searchNearby",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-Goog-Api-Key":ROUTES_API_KEY,
+        "X-Goog-FieldMask":"places.displayName,places.location,places.rating,places.userRatingCount,places.formattedAddress"},
+      body:JSON.stringify({includedTypes:["gym","fitness_center"],maxResultCount:20,rankPreference:"DISTANCE",
+        locationRestriction:{circle:{center:{latitude:p.lat,longitude:p.lng},radius:radiusM}}})
+    });
+    const data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error?.message||("HTTP "+res.status));
+    const list=(data.places||[]).map(pl=>{const name=pl.displayName?.text||"(sin nombre)";return {name,cat:clasifica(name),lat:pl.location?.latitude,lng:pl.location?.longitude,rating:pl.rating,reviews:pl.userRatingCount,addr:pl.formattedAddress}})
+      .filter(g=>g.lat!=null)
+      .sort((a,b)=>hav(p.lat,p.lng,a.lat,a.lng)-hav(p.lat,p.lng,b.lat,b.lng));
+    p.gyms={list,radioKm,at:new Date().toISOString()};
+  }catch(err){p.gyms={error:err.message,at:new Date().toISOString()}}
+  save(POINTS);$("#gBuscar").disabled=false;renderPoints();
+  if(sel)drawGymMarkers(POINTS.find(x=>x.id===sel));
+});
+let gymMarkers=[];
+function drawGymMarkers(p){
+  gymMarkers.forEach(m=>m.setMap(null));gymMarkers=[];
+  if(!p||!p.gyms||p.gyms.error)return;
+  p.gyms.list.filter(g=>gymFilter==="todos"||g.cat===gymFilter).forEach(g=>{
+    const color=g.cat==="tradicional"?"#E53935":"#1E6FE5";
+    const m=new google.maps.Marker({position:{lat:g.lat,lng:g.lng},map,title:g.name,
+      icon:{path:"M -6,-6 6,-6 6,6 -6,6 z",scale:1.2,fillColor:color,fillOpacity:.9,strokeColor:"#fff",strokeWeight:1.5,anchor:new google.maps.Point(0,0)}});
+    const iw=new google.maps.InfoWindow({content:`<div style="font-family:Barlow,sans-serif;color:#15171C;min-width:150px"><b style="color:#15171C">${esc(g.name)}</b><br><span style="font-size:12px">${g.cat==="tradicional"?"Gimnasio tradicional":"Estudio de nicho"}</span>${g.rating?`<br>⭐ ${g.rating} (${num(g.reviews||0)} reseñas)`:""}${g.addr?`<br><span style="font-size:12px">${esc(g.addr)}</span>`:""}</div>`});
+    m.addListener("click",()=>iw.open(map,m));
+    gymMarkers.push(m);
+  });
+}
+["mEdadMin","mEdadMax","mGenero","mDispositivo","mInteres","mComport","mEstado","mEscolar"].forEach(id=>{
+  $("#"+id).addEventListener("change",()=>{
+    const p=POINTS.find(x=>x.id===sel);if(!p)return;
+    p.metaFiltros={ageMin:Number($("#mEdadMin").value)||18,ageMax:Number($("#mEdadMax").value)||65,
+      genero:$("#mGenero").value,dispositivo:$("#mDispositivo").value,
+      interes:$("#mInteres").value,comportamiento:$("#mComport").value,
+      estado:$("#mEstado").value,escolar:$("#mEscolar").value};
+    save(POINTS);
+  });
+});
+const LS_META="cg-meta-creds";
+function loadMeta(){try{return JSON.parse(localStorage.getItem(LS_META)||"{}")}catch(e){return{}}}
+let metaCreds=Object.assign({token:"EAAgLa6A2qV0BS62jRSbGZCKu23ZAb3rxZAQ5TkNJZASBCaAWWn1RelqZB480dBmW7SsGEHADDMsk88DBibV6z0y4KwYwMSMKSrtROzPpZCkPAWoXCihIA43OF0GVGEZBfDqXXMot7AcProYy1SfrcwxnlKt9I4FG8BYEwiMfmgxwpVWdwcO11wZCufLz0bQ4NznfjawK5RZBdbZCmUEXxgPsgitheWChYcyWpNUT02F0Yw3GyPj8AqzHfmV0OZBVEEoZBOTOxl8xvZBEFZB6xG60LfZCGIkNDQZD",acct:"1380233544307679"},loadMeta());
+$("#metaToken").value=metaCreds.token||"";$("#metaAcct").value=metaCreds.acct||"";
+["metaToken","metaAcct"].forEach(id=>$("#"+id).addEventListener("change",()=>{
+  metaCreds={token:$("#metaToken").value.trim(),acct:$("#metaAcct").value.trim()};
+  try{localStorage.setItem(LS_META,JSON.stringify(metaCreds))}catch(e){}
+}));
+$("#mCalc").addEventListener("click",async()=>{
+  const p=POINTS.find(x=>x.id===sel);if(!p)return;
+  const token=$("#metaToken").value.trim(),acct=$("#metaAcct").value.trim().replace(/^act_/,"");
+  if(!token||!acct){toast("Falta el token o el ID de cuenta (ábrelo en \"Credenciales de Meta\")");return}
+  const mf={ageMin:Number($("#mEdadMin").value)||18,ageMax:Number($("#mEdadMax").value)||65,
+    genero:$("#mGenero").value,dispositivo:$("#mDispositivo").value,
+    interes:$("#mInteres").value,comportamiento:$("#mComport").value,
+    estado:$("#mEstado").value,escolar:$("#mEscolar").value};
+  const radioKm=Math.max(1,Number(p.radioKm)||1);
+  const spec={geo_locations:{custom_locations:[{latitude:p.lat,longitude:p.lng,radius:radioKm,distance_unit:"kilometer"}]},
+    age_min:mf.ageMin,age_max:mf.ageMax};
+  if(mf.genero!=="todos")spec.genders=[Number(mf.genero)];
+  if(mf.dispositivo!=="todos")spec.user_os=[mf.dispositivo==="ios"?"iOS":"Android"];
+  if(mf.estado!=="todos")spec.relationship_statuses=[Number(mf.estado)];
+  if(mf.escolar!=="todos")spec.education_statuses=mf.escolar.split(",").map(Number);
+  const flex=[];
+  if(mf.interes!=="ninguno")flex.push({interests:[{id:mf.interes}]});
+  if(mf.comportamiento!=="ninguno")flex.push({behaviors:[{id:mf.comportamiento}]});
+  if(flex.length)spec.flexible_spec=flex;
+  $("#mCalc").disabled=true;$("#mNote").textContent="Consultando…";
+  try{
+    const url=`https://graph.facebook.com/v23.0/act_${acct}/reachestimate?targeting_spec=${encodeURIComponent(JSON.stringify(spec))}&access_token=${encodeURIComponent(token)}`;
+    const res=await fetch(url);const json=await res.json();
+    if(!res.ok||json.error)throw new Error(json.error?.message||("HTTP "+res.status));
+    const d=Array.isArray(json.data)?json.data[0]:json.data;
+    if(!d||d.users_lower_bound==null)throw new Error("Meta no regresó un estimado para esta zona");
+    p.meta={lower:d.users_lower_bound,upper:d.users_upper_bound,...mf,radioKm,at:new Date().toISOString()};
+    p.metaFiltros={...mf};
+  }catch(err){p.meta={error:err.message,at:new Date().toISOString()}}
+  save(POINTS);$("#mCalc").disabled=false;renderPoints();
+});
+["pNom","pTipo","pRad","pMin","pVel"].forEach(id=>{
+  $("#"+id).addEventListener("change",()=>{
+    const p=POINTS.find(x=>x.id===sel);if(!p)return;
+    p.nombre=$("#pNom").value.trim()||"Sin nombre";p.tipo=$("#pTipo").value;
+    p.radioKm=Number($("#pRad").value)||0;p.minutos=Number($("#pMin").value)||0;p.velocidad=Number($("#pVel").value)||30;
+    save(POINTS);renderPoints();
+  });
+});
+$("#pDel").addEventListener("click",()=>{
+  const p=POINTS.find(x=>x.id===sel);if(!p)return;
+  if(!confirm(`¿Borrar ${p.nombre}?`))return;
+  POINTS=POINTS.filter(x=>x.id!==p.id);sel=null;save(POINTS);renderPoints();
+});
+
+/* ---------- Isochrones API: zona real alcanzable en X minutos manejando ----------
+   Endpoint: https://isochrones.googleapis.com/v1/isochrones:generate
+   Requiere la API "Isochrones API" activada en Google Cloud y en la clave.
+   Una sola llamada por punto: devuelve el polígono real alcanzable por calles.
+   Máximo 60 min para DRIVE. La zona de "minutos" en pantalla usa este polígono. */
+// [dedup]
+function extractRings(geojson){
+  // Soporta Polygon y MultiPolygon → array de anillos exteriores [[ [lng,lat], ... ]]
+  if(!geojson)return [];
+  const out=[];
+  const add=coords=>{if(coords&&coords[0])out.push(coords[0].map(c=>[c[0],c[1]]))};
+  if(geojson.type==="Polygon")add(geojson.coordinates);
+  else if(geojson.type==="MultiPolygon")geojson.coordinates.forEach(add);
+  return out;
+}
+$("#pCalc").addEventListener("click",async()=>{
+  const p=POINTS.find(x=>x.id===sel);if(!p)return;
+  const T=Number(p.minutos)||0;
+  if(T<=0){toast("Pon los minutos buscados primero");return}
+  if(T>60){toast("Google permite máximo 60 minutos manejando");return}
+  if(!confirm(`Esto hace 1 llamada a Google (Isochrones API) para el área real a ${T} min manejando. Revisa el costo vigente en tu consola de Google Cloud. ¿Continuar?`))return;
+  $("#pCalc").disabled=true;$("#pBar").style.display="block";$("#pBarI").style.width="40%";$("#pCalcNote").textContent="Calculando el área real…";
+  try{
+    const res=await fetch(`https://isochrones.googleapis.com/v1/isochrones:generate?key=${encodeURIComponent(ROUTES_API_KEY)}`,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({location:{latitude:p.lat,longitude:p.lng},travelDuration:(T*60)+"s",travelMode:"DRIVE",travelDirection:"TO"})
+    });
+    const data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error?.message||("HTTP "+res.status));
+    const geo=data.isochrone?.geoJson||data.isochrone?.geoJsonGeometry||data.isochrone?.geometry;
+    const rings=extractRings(geo);
+    if(!rings.length)throw new Error("Google no devolvió un área para este punto");
+    $("#pBarI").style.width="100%";
+    p.iso={minutos:T,rings,at:new Date().toISOString()};
+    delete p.real;
+    toast("Área real calculada");
+  }catch(err){p.iso=null;toast("Google: "+err.message)}
+  $("#pCalc").disabled=false;$("#pBar").style.display="none";
+  renderPoints();
+});
+
+window.initCracksMap=function(){
+  if(window.GEO){window._gMapReady=true;initMap();}
+  else{const _wi=setInterval(()=>{if(window.GEO){clearInterval(_wi);window._gMapReady=true;initMap();}},150);}
+};
+
+</script>
+</body>
+</html>
