@@ -834,7 +834,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       blocks.push({type: "text", text: typeof last.content === "string" ? last.content : JSON.stringify(last.content)});
       last.content = blocks;
     }
-    const {data, error} = await sb.functions.invoke("claude", {body: {messages, max_tokens: opts.maxTokens || 4000}});
+    const {data, error} = await sb.functions.invoke("funcion-claude-ts", {body: {messages, max_tokens: opts.maxTokens || 4000}});
     if (error){
       const st = error.context && error.context.status;
       throw {code: st === 401 || st === 403 ? "not_granted" : st === 429 ? "rate_limited" : "error", message: error.message};
