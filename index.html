@@ -826,7 +826,22 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
     return btoa(s);
   }
+  /* Muestra el motivo real cuando Claude falla (8 s, abajo de la pantalla) */
+  function avisoError(msg){
+    let el = document.getElementById("cgErr");
+    if (!el){
+      el = document.createElement("div"); el.id = "cgErr"; el.setAttribute("role", "alert");
+      el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:200;max-width:90vw;background:#C62828;color:#fff;padding:10px 16px;border-radius:10px;font:600 14px/1.4 Barlow,sans-serif";
+      document.body.appendChild(el);
+    }
+    el.textContent = "Detalle del error: " + msg; el.hidden = false;
+    clearTimeout(avisoError.t); avisoError.t = setTimeout(() => el.hidden = true, 8000);
+  }
   async function pedir(input, opts = {}){
+    try { return await pedir2(input, opts); }
+    catch (e) { avisoError((e && (e.message || e.code)) || "desconocido"); throw e; }
+  }
+  async function pedir2(input, opts = {}){
     const messages = typeof input === "string" ? [{role: "user", content: input}] : input.map(m => ({...m}));
     if (opts.images && opts.images.length){
       const last = messages[messages.length - 1], blocks = [];
@@ -837,10 +852,12 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const {data, error} = await sb.functions.invoke("funcion-claude-ts", {body: {messages, max_tokens: opts.maxTokens || 4000}});
     if (error){
       const st = error.context && error.context.status;
-      throw {code: st === 401 || st === 403 ? "not_granted" : st === 429 ? "rate_limited" : "error", message: error.message};
+      let detalle = error.message;
+      try { const j = await error.context.json(); detalle = (j.error && j.error.message) || JSON.stringify(j); } catch (x) {}
+      throw {code: st === 401 || st === 403 ? "not_granted" : st === 429 ? "rate_limited" : "error", message: "HTTP " + (st || "?") + " · " + detalle};
     }
     if (data && data.error){
-      throw {code: data.error.type === "rate_limit_error" || data.error.type === "overloaded_error" ? "rate_limited" : "error", message: data.error.message};
+      throw {code: data.error.type === "rate_limit_error" || data.error.type === "overloaded_error" ? "rate_limited" : "error", message: (data.error.type || "") + " · " + data.error.message};
     }
     const text = (data.content || []).map(b => b.text || "").join("");
     if (opts.onText) try { opts.onText({text, delta: text}); } catch (e) {}
